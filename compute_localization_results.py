@@ -176,6 +176,10 @@ def compute_localization_results(bb_file,
         # Skip blacklisted examples.
         if blacklist[i]:
             continue
+        # Automatically fail examples with coordinates [-1, -1, -1, -1].
+        if np.all(bbs[i] == -1):
+            res[i] = False
+            continue
         objs = load_objs(ann_paths[i])
         ov_vector = compute_overlap(bbs[i], objs, bb_labels[i])
         try:
