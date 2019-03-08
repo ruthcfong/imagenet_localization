@@ -17,6 +17,22 @@ def str2bool(v):
     raise ValueError('Boolean argument needs to be true or false. '
                      'Instead, it is %s.' % v)
 
+def get_basename_without_ext(paths):
+    """Return array of base names."""
+    return np.array([os.path.splitext(os.path.basename(p))[0] for p in paths])
+
+
+def create_dir_if_necessary(path, is_dir=False):
+    """Create directory to path if necessary."""
+    parent_dir = get_parent_dir(path) if not is_dir else path
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)
+
+
+def get_parent_dir(path):
+    """Return parent directory of path."""
+    return os.path.abspath(os.path.join(path, os.pardir))
+
 
 def write_imdb(split_dir, gt_file, out_file):
     """

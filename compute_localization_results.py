@@ -10,7 +10,7 @@ import os
 from bs4 import BeautifulSoup
 import numpy as np
 
-from utils import str2bool
+from utils import str2bool, read_imdb, get_basename_without_ext
 
 
 def load_annotation(ann_filename):
@@ -104,7 +104,8 @@ def compute_overlap(bb, objs, label):
 
 
 def compute_localization_results(bb_file,
-                                 ann_paths,
+                                 imdb_file,
+                                 annotation_dir,
                                  verbose=False,
                                  blacklist_path='data/ILSVRC2014_clsloc_validation_blacklist.txt'):
     """
@@ -112,7 +113,9 @@ def compute_localization_results(bb_file,
 
     Args:
         bb_file: String, path to predicted bounding box file.
-        ann_paths: List, containing paths to annotation files.
+        imdb_file: String, path to imdb file with image names and labels
+            (assuming that bb_file is sorted by imdb_file).
+        annotation_dir: String, path to dir containing annotation files.
         verbose: Bool, if True, print progress.
         blacklist_path: String, path to ImageNet blacklist.
 
@@ -126,23 +129,51 @@ def compute_localization_results(bb_file,
                for each image.
     """
     if verbose:
+        print('Sort annotation files to match order in imdb file.')
+
+    # Get order of image files from imdb file.
+    (rel_img_paths, _) = read_imdb(imdb_file)
+    num_examples = len(rel_img_paths)
+
+    img_names = get_basename_without_ext(rel_img_paths)
+
+    sorted_idx = np.argsort(img_names)
+    sorted_to_order_idx = {j:i for i, j in enumerate(sorted_idx)}
+    order_idx = np.array([sorted_to_order_idx[j] for j in range(num_examples)])
+
+    # Order annotation files based on imdb order.
+    ann_paths = np.sort([os.path.join(annotation_dir, f)
+                         for f in os.listdir(annotation_dir)])
+
+    # TODO(ruthfong): Support situation where number of annotation paths is
+    # larger than the number of examples (and select the correct
+    # annotation paths).
+    assert(len(ann_paths) == num_examples)
+    ann_paths = ann_paths[order_idx]
+
+    # Verify ordering of annotation files.
+    assert(np.all(img_names == get_basename_without_ext(ann_paths)))
+
+    # Load bounding boxes from bb_file.
+    if verbose:
         print('Loading bounding boxes from', bb_file)
     bb_data = np.loadtxt(bb_file, dtype=str)
     bb_labels = bb_data[:,0].astype(str)
     bbs = bb_data[:,1:].astype(int)
-
-    num_examples = len(ann_paths)
-
     assert(num_examples == len(bb_labels))
 
+    # TODO(ruthfong): Implement this more robustly.
+    # Add to blacklist for ImageNet validation set.
     blacklist = np.zeros(num_examples)
     if num_examples == 50000:
         blacklist_idx = np.loadtxt(blacklist_path, dtype=int) - 1
         blacklist[blacklist_idx] = 1
 
+    # Iterate over every example and compute overlap.
     res = np.zeros(num_examples, dtype=int)
     overlap = np.zeros(num_examples)
     for i in range(num_examples):
+        # Skip blacklisted examples.
         if blacklist[i]:
             continue
         objs = load_objs(ann_paths[i])
@@ -152,9 +183,12 @@ def compute_localization_results(bb_file,
         except:
             print(i, ov_vector)
         overlap[i] = max(ov_vector)
+
+    # Compute overall localization error.
     err = res.sum()/float(num_examples - blacklist.sum())
     if verbose:
         print('Localization Error:', err)
+
     return (err, 1-res, overlap)
 
 
@@ -169,6 +203,9 @@ if __name__ == '__main__':
         parser.add_argument('--bb_file', type=str,
                             default='data/dummy_bb_file.txt',
                             help='Text file with predicted bounding boxes.')
+        parser.add_argument('--imdb_file', type=str,
+                            default='data/val.txt',
+                            help='File with relative image paths and labels.')
         parser.add_argument('--annotation_dir', type=str,
                             default='/datasets/imagenet14/cls_loc/val',
                             help='Path to dir with ImageNet annotations.')
@@ -177,11 +214,9 @@ if __name__ == '__main__':
                             default='data/ILSVRC2014_clsloc_validation_blacklist.txt')
         args = parser.parse_args()
 
-        ann_paths = np.sort([os.path.join(args.annotation_dir, f)
-                             for f in os.listdir(args.annotation_dir)])
-
         compute_localization_results(bb_file=args.bb_file,
-                                     ann_paths=ann_paths,
+                                     imdb_file=args.imdb_file,
+                                     annotation_dir=args.annotation_dir,
                                      verbose=args.verbose,
                                      blacklist_path=args.blacklist_path)
     except:
