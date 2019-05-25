@@ -106,7 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_dir', type=str,
                         default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
     parser.add_argument('--image_dir', type=str,
-                        default='/scratch/local/ssd/ruthfong/ILSVRC2012/val')
+                        default='/scratch/shared/slow/ruthfong/ILSVRC2012/images/val_pytorch/')
     parser.add_argument('--annotation_dir', type=str,
                         default='/datasets/imagenet14/cls_loc/val')
     parser.add_argument('--figures_dir', type=str, default=None)
