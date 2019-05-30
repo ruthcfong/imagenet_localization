@@ -17,23 +17,41 @@ def find_best_alpha(
     out_path='/scratch/shared/slow/mandela/bbox_results'
 ):
     errs = np.zeros(len(alphas))
+    results = []
+    overlaps = []
     for i in range(len(alphas)):
         print(i)
         alpha = alphas[i]
         bb_name = 'bb_val_%s_%s_%.2f.txt' % (attribution_method, method, alpha)
         bb_file = os.path.join(out_path, bb_name)
-        (err, _, _) = compute_localization_results(
+        (err, res, overlap) = compute_localization_results(
             bb_file=bb_file, 
             imdb_file=imdb_file,  
             annotation_dir=annotation_dir,
             verbose=verbose
         )
         errs[i] = err
+        results.append(res)
+        overlaps.append(overlaps)
     for i in range(len(alphas)):
         print('alpha = %.2f, err = %f' % (alphas[i], errs[i]))
     min_i = np.argmin(errs)
     print('best alpha = %.2f, err = %f' % (alphas[min_i], errs[min_i]))
-    return errs[min_i], alphas[min_i]
+    results = {
+        'imdb_file': imdb_file,
+        'annotation_dir': annotation_dir,
+        'attribution_method': attribution_method,
+        'method': method,
+        'out_path': out_path,
+        'alphas': alphas,
+        'errors': errs,
+        'example_indicators': results,
+        'example_overlaps': overlaps,
+        'best_index': min_i,
+        'best_alpha': alphas[min_i],
+        'best_err': errs[min_i],
+    }
+    return results
 
 
 def get_bbox_and_localization_results(
@@ -57,7 +75,7 @@ def get_bbox_and_localization_results(
         if not os.path.exists(out_file):
             generate_bbox_file(data_dir, out_file, method=method, alpha=alpha, imdb_file=imdb_file, smooth=smooth)
 
-    best_err, best_alpha = find_best_alpha(
+    res = find_best_alpha(
         imdb_file=imdb_file, 
         annotation_dir=annotation_dir,
         attribution_method=attribution_method,
@@ -67,12 +85,7 @@ def get_bbox_and_localization_results(
         out_path=out_path
     )
 
-    res_dict = {}
-    res_dict['attribution_method'] = attribution_method
-    res_dict['method'] = method
-    res_dict['best_alpha'] = best_alpha
-    res_dict['best_err'] = best_err
-    torch.save(res_dict, os.path.join(out_path, '%s_%s_bbox_dict.pth' % (attribution_method, method)))    
+    torch.save(res, os.path.join(out_path, '%s_%s_bbox_dict_new.pth' % (attribution_method, method)))
 
 
 if __name__ == '__main__':
@@ -86,6 +99,7 @@ if __name__ == '__main__':
         parser.add_argument('--attribution_method', type=str, default='pertrubations')
         parser.add_argument('--data_dir', type=str, default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
         parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
+        # parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/ruthfong/imagenet_localization/bbox_results')
         parser.add_argument('--method', type=str, default='mean')
         parser.add_argument('--annotation_dir', type=str, default='/datasets/imagenet14/cls_loc/val')
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
