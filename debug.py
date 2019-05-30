@@ -73,10 +73,11 @@ def generate_bbox(data_dir, image_path, synset, image_name,
     heatmap = resized_mask
     if method == 'mean':
         threshold = alpha*heatmap.mean()
-        heatmap[heatmap < threshold] = 0
+        heatmap = heatmap >= threshold
     elif method == 'min_max_diff':
         threshold = alpha*(heatmap.max()-heatmap.min())
         heatmap_m = heatmap - heatmap.min()
+        heatmap = heatmap_m >= threshold
         heatmap[heatmap_m < threshold] = 0
     elif method == 'energy':
         heatmap_f = heatmap.flatten()
@@ -84,6 +85,7 @@ def generate_bbox(data_dir, image_path, synset, image_name,
         tot_energy = heatmap.sum()
         heatmap_cum = np.cumsum(heatmap_f[sorted_idx])
         ind = np.where(heatmap_cum >= alpha*tot_energy)[0][0]
+        heatmap_f = np.ones(heatmap_f.shape)
         heatmap_f[sorted_idx[ind:]] = 0
         heatmap = np.reshape(heatmap_f, heatmap.shape)
 
