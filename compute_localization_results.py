@@ -172,24 +172,37 @@ def compute_localization_results(bb_file,
     # Iterate over every example and compute overlap.
     res = np.zeros(num_examples, dtype=int)
     overlap = np.zeros(num_examples)
+    no_masks = np.zeros(num_examples)
     for i in range(num_examples):
         # Skip blacklisted examples.
         if blacklist[i]:
             continue
-        # Automatically fail examples with coordinates [-1, -1, -1, -1].
+        # Automatically fail examples with coordinates [-1, -1, -1, -1] - no bbox.
         if np.all(bbs[i] == -1):
+            print('No BBox')
+            res[i] = True
+            continue
+        if np.all(bbs[i] == -2):
+            print('Mask not computed')
             res[i] = False
+            no_masks[i] = True
             continue
         objs = load_objs(ann_paths[i])
         ov_vector = compute_overlap(bbs[i], objs, bb_labels[i])
+        if len(ov_vector) == 0:
+            print("No Overlap")
+            res[i] = True
+            overlap[i] = False
+            continue
         try:
             res[i] = max(ov_vector) < 0.5
         except:
             print(i, ov_vector)
         overlap[i] = max(ov_vector)
 
+    print(res)
     # Compute overall localization error.
-    err = res.sum()/float(num_examples - blacklist.sum())
+    err = res.sum()/float(num_examples - blacklist.sum() - no_masks.sum())
     if verbose:
         print('Localization Error:', err)
 
@@ -205,10 +218,10 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.register('type', 'bool', str2bool)
         parser.add_argument('--bb_file', type=str,
-                            default='data/dummy_bb_file.txt',
+                            default='/scratch/shared/slow/mandela/bbox_results/bb_val_pertrubations_mean_5.00.txt',
                             help='Text file with predicted bounding boxes.')
         parser.add_argument('--imdb_file', type=str,
-                            default='data/val.txt',
+                            default='./data/val_imdb_0_1000.txt',
                             help='File with relative image paths and labels.')
         parser.add_argument('--annotation_dir', type=str,
                             default='/datasets/imagenet14/cls_loc/val',
