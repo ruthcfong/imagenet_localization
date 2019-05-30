@@ -44,7 +44,8 @@ def get_bbox_and_localization_results(
     alphas=np.arange(0,10,0.1),
     annotation_dir='/datasets/imagenet14/cls_loc/val',
     imdb_file='./data/val_imdb_0_1000.txt',
-    verbose=True
+    verbose=True,
+    smooth=True
 ):  
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -54,7 +55,7 @@ def get_bbox_and_localization_results(
         bb_file = 'bb_val_%s_%s_%.2f.txt' % (attribution_method, method, alpha)
         out_file = os.path.join(out_path, bb_file)
         if not os.path.exists(out_file):
-            generate_bbox_file(data_dir, out_file, method=method, alpha=alpha, imdb_file=imdb_file)
+            generate_bbox_file(data_dir, out_file, method=method, alpha=alpha, imdb_file=imdb_file, smooth=smooth)
 
     best_err, best_alpha = find_best_alpha(
         imdb_file=imdb_file, 
@@ -84,13 +85,14 @@ if __name__ == '__main__':
         parser.register('type', 'bool', str2bool)
         parser.add_argument('--attribution_method', type=str, default='pertrubations')
         parser.add_argument('--data_dir', type=str, default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
-        parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results')
+        parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
         parser.add_argument('--method', type=str, default='mean')
         parser.add_argument('--annotation_dir', type=str, default='/datasets/imagenet14/cls_loc/val')
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
         parser.add_argument('--verbose', type='bool', default=True)
         parser.add_argument('--small_range', type='bool', default=False)
         parser.add_argument('--gpu', type=int, nargs='*', default=None)
+        parser.add_argument('--smooth', type='bool', default=True)
         
         args = parser.parse_args()
         if args.small_range:
@@ -106,7 +108,8 @@ if __name__ == '__main__':
             alphas=the_range,
             annotation_dir=args.annotation_dir,
             imdb_file=args.imdb_file,
-            verbose=args.verbose
+            verbose=args.verbose,
+            smooth=args.smooth
         )
     except:
         traceback.print_exc(file=sys.stdout)

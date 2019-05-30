@@ -137,3 +137,17 @@ def imsmooth(x, sigma, stride=1, padding=0, padding_mode='constant', padding_val
                  padding=(padding, P), stride=(1, stride), groups=num_channels)
     return y
 
+
+def normalize(arr):
+    """Normalize array values to be between 0 and 1
+        Args:
+            arr (numpy array): non-normalized array
+        Return:
+            normalized array
+    """
+    if (arr == 0).all() or (arr == 1).all():
+        return arr
+    min_value = np.min(arr)
+    max_value = np.max(arr)
+    norm_arr = (arr - min_value) / (max_value - min_value)
+    return norm_arr

@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 from skimage import transform
 import torch
+from utils import imsmooth
 
 VALID_SPLITS = ['val']
 
@@ -25,7 +26,8 @@ def normalize(arr):
 
 
 def generate_bbox_file(data_dir, out_file, 
-    method='mean', alpha=0.5, imdb_file='./data/val_imdb_0_1000.txt'):
+    method='mean', alpha=0.5, imdb_file='./data/val_imdb_0_1000.txt', 
+    smooth=True):
     """
 
     Args:
@@ -75,11 +77,19 @@ def generate_bbox_file(data_dir, out_file,
         (img_w, img_h) = img.size
 
         # Load and verify 2D mask.
-        mask = res['mask'].cpu().data.squeeze().numpy()
+        mask = res['mask']
         # if list of masks, find mean mask
-        if len(mask.shape) == 3:
-            mask = np.mean(mask, axis=0)
+        if len(mask.shape) == 4:
+            mask = torch.mean(mask, dim=0, keepdim=True)       
+
+        if smooth:
+            mask = imsmooth(mask, sigma=20)
+
+        mask = mask.squeeze()
         assert(len(mask.shape) == 2)
+
+        mask = mask.cpu().data.squeeze().numpy()
+
         if (not np.max(mask) <= 1) or (not np.min(mask) >= 0):
             print('Normalizing')
             mask = normalize(mask)
@@ -144,7 +154,8 @@ if __name__ == '__main__':
         generate_bbox_file(data_dir=args.data_dir,
                            out_file=args.out_file,
                            alpha=args.alpha,
-                           imdb_file=args.imdb_file)
+                           imdb_file=args.imdb_file,
+                           smooth=args.smooth)
     except:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)

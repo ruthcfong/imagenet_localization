@@ -65,7 +65,7 @@ def compute_localization_ap(exp_dir, image_dir, annotation_dir, out_file, figure
 
             vis = resize(
                 imsmooth(torch.sum(x['mask'], 0, keepdim=True),
-                         sigma=10).squeeze().cpu().data.numpy(),
+                         sigma=20).squeeze().cpu().data.numpy(),
                 (h, w))
             y_flat = mask.reshape(-1)
             vis_flat = vis.reshape(-1)
