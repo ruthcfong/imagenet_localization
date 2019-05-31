@@ -107,7 +107,8 @@ def compute_localization_results(bb_file,
                                  imdb_file,
                                  annotation_dir,
                                  verbose=False,
-                                 blacklist_path='data/ILSVRC2014_clsloc_validation_blacklist.txt'):
+                                 blacklist_path='data/ILSVRC2014_clsloc_validation_blacklist.txt',
+                                 force_full=True):
     """
     Compute ImageNet localization error.
 
@@ -116,8 +117,10 @@ def compute_localization_results(bb_file,
         imdb_file: String, path to imdb file with image names and labels
             (assuming that bb_file is sorted by imdb_file).
         annotation_dir: String, path to dir containing annotation files.
-        verbose: Bool, if True, print progress.
+        verbose: Boolean, if True, print progress.
         blacklist_path: String, path to ImageNet blacklist.
+        force_full: Boolean, if True, force number of bounding boxes to match
+            number of images.
 
     Returns:
         tuple containing
@@ -160,7 +163,14 @@ def compute_localization_results(bb_file,
     bb_data = np.loadtxt(bb_file, dtype=str)
     bb_labels = bb_data[:,0].astype(str)
     bbs = bb_data[:,1:].astype(int)
-    assert(num_examples == len(bb_labels))
+
+    if force_full:
+        assert num_examples == len(bb_labels)
+    else:
+        if num_examples != len(bb_labels):
+            print(f'Number of expected labels ({num_examples}) does not match ' \
+                  f'number of actual labels ({len(bb_labels)}).')
+            num_examples = len(bb_labels)
 
     # TODO(ruthfong): Implement this more robustly.
     # Add to blacklist for ImageNet validation set.
@@ -227,6 +237,7 @@ if __name__ == '__main__':
                             default='/datasets/imagenet14/cls_loc/val',
                             help='Path to dir with ImageNet annotations.')
         parser.add_argument('--verbose', type='bool', default=True)
+        parser.add_argument('--force_full', type='bool', default=True)
         parser.add_argument('--blacklist_path', type=str,
                             default='data/ILSVRC2014_clsloc_validation_blacklist.txt')
         args = parser.parse_args()
@@ -235,7 +246,8 @@ if __name__ == '__main__':
                                      imdb_file=args.imdb_file,
                                      annotation_dir=args.annotation_dir,
                                      verbose=args.verbose,
-                                     blacklist_path=args.blacklist_path)
+                                     blacklist_path=args.blacklist_path,
+                                     force_full=args.force_full)
     except:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
