@@ -206,7 +206,7 @@ def compute_localization_results(bb_file,
     if verbose:
         print('Localization Error:', err)
 
-    return (err, 1-res, overlap)
+    return (err, res, overlap, no_masks, blacklist.sum())
 
 
 if __name__ == '__main__':

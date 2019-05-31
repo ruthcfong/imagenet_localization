@@ -19,12 +19,14 @@ def find_best_alpha(
     errs = np.zeros(len(alphas))
     results = []
     overlaps = []
+    num_blacklists = []
+    no_masks = []
     for i in range(len(alphas)):
         print(i)
         alpha = alphas[i]
         bb_name = 'bb_val_%s_%s_%.2f.txt' % (attribution_method, method, alpha)
         bb_file = os.path.join(out_path, bb_name)
-        (err, res, overlap) = compute_localization_results(
+        (err, res, overlap, no_mask, num_blacklist) = compute_localization_results(
             bb_file=bb_file, 
             imdb_file=imdb_file,  
             annotation_dir=annotation_dir,
@@ -32,7 +34,9 @@ def find_best_alpha(
         )
         errs[i] = err
         results.append(res)
-        overlaps.append(overlaps)
+        overlaps.append(overlap)
+        num_blacklists.append(num_blacklist)
+        no_masks.append(no_mask)
     for i in range(len(alphas)):
         print('alpha = %.2f, err = %f' % (alphas[i], errs[i]))
     min_i = np.argmin(errs)
@@ -47,6 +51,8 @@ def find_best_alpha(
         'errors': errs,
         'example_indicators': results,
         'example_overlaps': overlaps,
+        'num_blacklists': num_blacklists,
+        'no_masks': no_masks,
         'best_index': min_i,
         'best_alpha': alphas[min_i],
         'best_err': errs[min_i],
