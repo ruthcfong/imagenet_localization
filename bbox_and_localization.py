@@ -60,6 +60,41 @@ def find_best_alpha(
     return results
 
 
+def get_bb_file(out_path,
+                attribution_method,
+                method,
+                alpha,
+                smooth=0.,
+                processing=None):
+    """
+    Return path of bounding box file.
+
+    Args:
+        out_path: String.
+        attribution_method: String.
+        method: String.
+        alpha: Float.
+        smooth: Float.
+        processing: String.
+
+    Return:
+        out_file: String, path to bounding box file.
+    """
+    if processing is None:
+        if smooth == 0.:
+            bb_file = ('bb_val_%s_%s_%.2f.txt'
+                       % (attribution_method, method, alpha))
+        else:
+            bb_file = ('bb_val_%s_%s_%.2f_sm_%.1f.txt'
+                       % (attribution_method, method, alpha, smooth))
+    else:
+        bb_file = ('bb_val_%s_%s_%s_%.2f_sm_%.1f.txt'
+                   % (attribution_method, processing, method, alpha, smooth))
+
+    out_file = os.path.join(out_path, bb_file)
+    return out_file
+
+
 def get_bbox_and_localization_results(
     attribution_method='perturbations',
     data_dir='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16',
@@ -69,17 +104,34 @@ def get_bbox_and_localization_results(
     annotation_dir='/datasets/imagenet14/cls_loc/val',
     imdb_file='./data/val_imdb_0_1000.txt',
     verbose=True,
-    smooth=True
+    smooth=0.,
+    processing=None,
+    analysis_file=None,
 ):  
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
     for i in range(len(alphas)):
         alpha = alphas[i]
-        bb_file = 'bb_val_%s_%s_%.2f.txt' % (attribution_method, method, alpha)
-        out_file = os.path.join(out_path, bb_file)
+
+        # Get name of bounding box file.
+        out_file = get_bb_file(out_path=out_path,
+                               attribution_method=attribution_method,
+                               method=method,
+                               alpha=alpha,
+                               smooth=smooth,
+                               processing=processing)
+
+        # Generate bounding box file if it doesn't exist.
         if not os.path.exists(out_file):
-            generate_bbox_file(data_dir, out_file, method=method, alpha=alpha, imdb_file=imdb_file, smooth=smooth)
+            generate_bbox_file(data_dir=data_dir,
+                               out_file=out_file,
+                               method=method,
+                               alpha=alpha,
+                               imdb_file=imdb_file,
+                               smooth=smooth,
+                               processing=processing,
+                               analysis_file=analysis_file)
 
     res = find_best_alpha(
         imdb_file=imdb_file, 
@@ -110,15 +162,26 @@ if __name__ == '__main__':
         parser.add_argument('--annotation_dir', type=str, default='/datasets/imagenet14/cls_loc/val')
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
         parser.add_argument('--verbose', type='bool', default=True)
-        parser.add_argument('--small_range', type='bool', default=False)
         parser.add_argument('--gpu', type=int, nargs='*', default=None)
-        parser.add_argument('--smooth', type='bool', default=True)
-        
+        parser.add_argument('--smooth', type=float, default=0.,
+                            help='sigma for smoothing to apply to heatmap '
+                                 '(default: 0.).')
+        parser.add_argument('--processing',
+                            choices=['mean_crossover', 'single_crossover'],
+                            default=None,
+                            help='specify type of processing with which to '
+                                 'apply to masks.')
+        parser.add_argument('--analysis_file', type=str,
+                            default='/scratch/shared/slow/ruthfong/attribution/results/analyze/exp20-sal-im12val-vgg16.pth',
+                            help='path of file containing information about '
+                                 'the result of applying masks to input.')
+
         args = parser.parse_args()
-        if args.small_range:
-            the_range = np.arange(0,1,0.05)
-        else:
+
+        if args.method == "mean":
             the_range = np.arange(0,10,0.5)
+        else:
+            the_range = np.arange(0,1,0.05)
 
         get_bbox_and_localization_results(
             attribution_method=args.attribution_method,
@@ -129,7 +192,9 @@ if __name__ == '__main__':
             annotation_dir=args.annotation_dir,
             imdb_file=args.imdb_file,
             verbose=args.verbose,
-            smooth=args.smooth
+            smooth=args.smooth,
+            processing=args.processing,
+            analysis_file=args.analysis_file,
         )
     except:
         traceback.print_exc(file=sys.stdout)
