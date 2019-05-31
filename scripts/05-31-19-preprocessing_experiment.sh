@@ -2,7 +2,7 @@
 
 #smooths=( "0.0" "10.0" "20.0" )
 #methods=( "mean" "min_max_diff" "energy" )
-#smooths=( "0.0" "10.0" "20.0" )
+smooths=( "0.0" "10.0" "20.0" )
 methods=( "mean" "threshold" )
 processings=( "mean_crossover" "single_crossover" )
 
