@@ -91,7 +91,7 @@ def get_bbox_and_localization_results(
         out_path=out_path
     )
 
-    torch.save(res, os.path.join(out_path, '%s_%s_bbox_dict_new.pth' % (attribution_method, method)))
+    torch.save(res, os.path.join(out_path, '%s_%s_bbox_dict_new_v2.pth' % (attribution_method, method)))
 
 
 if __name__ == '__main__':
