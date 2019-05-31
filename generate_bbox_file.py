@@ -25,9 +25,12 @@ def normalize(arr):
     return norm_arr
 
 
-def generate_bbox_file(data_dir, out_file, 
-    method='mean', alpha=0.5, imdb_file='./data/val_imdb_0_1000.txt', 
-    smooth=True):
+def generate_bbox_file(data_dir,
+                       out_file,
+                       method='mean',
+                       alpha=0.5,
+                       imdb_file='./data/val_imdb_0_1000.txt',
+                       smooth=0.):
     """
 
     Args:
@@ -35,7 +38,8 @@ def generate_bbox_file(data_dir, out_file,
         out_file: String, path to save output file.
         method: String, 'mean', 'min_max_diff', 'energy'
         alpha: Float, threshold value with which to threshold masks.
-        split: String, name of ImageNet split.
+        imdb_file: String, path to imdb file.
+        smooth: Float, amount of smoothing to apply.
     """
 
     synsets = np.loadtxt('data/synsets.txt', dtype=str, delimiter='\t')
@@ -82,8 +86,9 @@ def generate_bbox_file(data_dir, out_file,
         if len(mask.shape) == 4:
             mask = torch.mean(mask, dim=0, keepdim=True)       
 
-        if smooth:
-            mask = imsmooth(mask, sigma=20)
+        # Apply smoothing to heatmap.
+        if smooth > 0.:
+            mask = imsmooth(mask, sigma=smooth)
 
         mask = mask.squeeze()
         assert(len(mask.shape) == 2)
@@ -149,6 +154,9 @@ if __name__ == '__main__':
         parser.add_argument('--method', type=str, default='mean')
         parser.add_argument('--alpha', type=float, default=0.5)
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
+        parser.add_argument('--smooth', type=float, default=0.,
+                            help='sigma for smoothing to apply to heatmap '
+                                 '(default: 0.).')
         args = parser.parse_args()
 
         generate_bbox_file(data_dir=args.data_dir,
