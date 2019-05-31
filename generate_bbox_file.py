@@ -96,6 +96,45 @@ def apply_preprocessing(mask,
         assert False
 
 
+def get_bbox_from_heatmap(heatmap, alpha, method='mean'):
+    """Return bounding box coordinates for a thresholded heatmap.
+
+    Args:
+        heatmap: Numpy array, heatmap from which to threshold and extract
+            a bounding box.
+        alpha: Float, hyperparameter for thresholding.
+        method: String, name of thresholding method.
+
+    Returns:
+        list containing bounding box coordinates.
+    """
+    # Threshold mask and get smallest bounding box coordinates.
+    if method == 'mean':
+        threshold = alpha*heatmap.mean()
+        heatmap[heatmap < threshold] = 0
+    elif method == 'min_max_diff':
+        threshold = alpha*(heatmap.max()-heatmap.min())
+        heatmap_m = heatmap - heatmap.min()
+        heatmap[heatmap_m < threshold] = 0
+    elif method == 'energy':
+        heatmap_f = heatmap.flatten()
+        sorted_idx = np.argsort(heatmap_f)[::-1]
+        tot_energy = heatmap.sum()
+        heatmap_cum = np.cumsum(heatmap_f[sorted_idx])
+        ind = np.where(heatmap_cum >= alpha*tot_energy)[0][0]
+        heatmap_f[sorted_idx[ind:]] = 0
+        heatmap = np.reshape(heatmap_f, heatmap.shape)
+    elif method == 'threshold':
+        threshold = alpha
+        heatmap[heatmap < threshold] = 0
+
+    x = np.where(heatmap.sum(0) > 0)[0] + 1
+    y = np.where(heatmap.sum(1) > 0)[0] + 1
+    if len(x) == 0 or len(y) == 0:
+        return [-1, -1, -1, -1]
+    return [x[0],y[0],x[-1],y[-1]]
+
+
 def generate_bbox_file(data_dir,
                        out_file,
                        method='mean',
@@ -210,32 +249,11 @@ def generate_bbox_file(data_dir,
         assert(np.min(resized_mask) >= 0)
 
         # Threshold mask and get smallest bounding box coordinates.
-        heatmap = resized_mask
-        if method == 'mean':
-            threshold = alpha*heatmap.mean()
-            heatmap[heatmap < threshold] = 0
-        elif method == 'min_max_diff':
-            threshold = alpha*(heatmap.max()-heatmap.min())
-            heatmap_m = heatmap - heatmap.min()
-            heatmap[heatmap_m < threshold] = 0
-        elif method == 'energy':
-            heatmap_f = heatmap.flatten()
-            sorted_idx = np.argsort(heatmap_f)[::-1]
-            tot_energy = heatmap.sum()
-            heatmap_cum = np.cumsum(heatmap_f[sorted_idx])
-            ind = np.where(heatmap_cum >= alpha*tot_energy)[0][0]
-            heatmap_f[sorted_idx[ind:]] = 0
-            heatmap = np.reshape(heatmap_f, heatmap.shape)
-        elif method == 'threshold':
-            threshold = alpha
-            heatmap[heatmap < threshold] = 0
-
-        x = np.where(heatmap.sum(0) > 0)[0] + 1
-        y = np.where(heatmap.sum(1) > 0)[0] + 1
-        if len(x) == 0 or len(y) == 0:
-            bb_data.append([synset, -1, -1, -1, -1]) 
-            continue
-        bb_data.append([synset, x[0],y[0],x[-1],y[-1]])
+        bb = get_bbox_from_heatmap(heatmap=resized_mask,
+                                   alpha=alpha,
+                                   method=method)
+        bb.insert(0, synset)
+        bb_data.append(bb)
 
     bb_data = np.array(bb_data)
     idx = np.array(idx)
