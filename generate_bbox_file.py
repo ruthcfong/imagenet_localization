@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 from skimage import transform
 import torch
+from tqdm import tqdm
 from utils import imsmooth
 
 VALID_SPLITS = ['val']
@@ -25,12 +26,84 @@ def normalize(arr):
     return norm_arr
 
 
+def create_path_to_index(analysis_res):
+    assert 'res_paths' in analysis_res
+    path_to_index = {path: i for i, path in
+                     enumerate(analysis_res['res_paths'])}
+    return path_to_index
+
+
+def apply_preprocessing(mask,
+                        path,
+                        analysis_res,
+                        processing,
+                        path_to_index=None):
+    """
+    Apply pre-processing to mask.
+
+    Args:
+        mask: 4D torch.Tensor.
+        path: String.
+        analysis_res: dict.
+        processing: String.
+        path_to_index: dict.
+
+    Returns:
+        mask: 4D torch.Tensor.
+    """
+    if path_to_index is None:
+        path_to_index = create_path_to_index(analysis_res)
+
+    # If special pre-processing is desired, should expect an array
+    # of masks.
+    assert len(mask.shape) == 4
+
+    # Check that the path is in the analysis_file.
+    assert path in path_to_index
+
+    # If the path hasn't been processed yet in analysis_file, don't apply any
+    # special pre-processing.
+    curr_index = path_to_index[path]
+    if curr_index > analysis_res['i']:
+        mask = torch.mean(mask, dim=0, keepdim=True)
+        return mask
+
+    # Get logit scores for current example when preserving and deleting with
+    # masks.
+    y_prevs = analysis_res['y_prevs'][curr_index]
+    y_dels = analysis_res['y_dels'][curr_index]
+
+    if 'crossover' in processing:
+        # Get first index after crossover point.
+        crossed_idx = np.where(y_prevs > y_dels)[0]
+        if len(crossed_idx) == 0:
+            crossed_index = mask.shape[0] - 1
+        else:
+            crossed_index = crossed_idx[0]
+
+        # If using 'mean_crossover' pre-processing, take the mean of all
+        # masks before and one immediately after the crossover point between
+        # the logits of the preserved vs. deleted inputs.
+        if processing == 'mean_crossover':
+            mask = torch.mean(mask[:crossed_index + 1], dim=0, keepdim=True)
+            return mask
+        # If using 'single_crossover', take the first mask after the
+        # crossover point.
+        elif processing == 'single_crossover':
+            mask = mask[crossed_index].unsqueeze(0)
+            return mask
+    else:
+        assert False
+
+
 def generate_bbox_file(data_dir,
                        out_file,
                        method='mean',
                        alpha=0.5,
                        imdb_file='./data/val_imdb_0_1000.txt',
-                       smooth=0.):
+                       smooth=0.,
+                       processing=None,
+                       analysis_file=None):
     """
 
     Args:
@@ -40,6 +113,10 @@ def generate_bbox_file(data_dir,
         alpha: Float, threshold value with which to threshold masks.
         imdb_file: String, path to imdb file.
         smooth: Float, amount of smoothing to apply.
+        processing: String, type of pre-processing to apply to masks
+            (i.e., 'mean_crossover', 'single_crossover', or None).
+        analysis_file: String, path to analysis file, which contains
+            information the result of applying masks to the input.
     """
 
     synsets = np.loadtxt('data/synsets.txt', dtype=str, delimiter='\t')
@@ -51,14 +128,32 @@ def generate_bbox_file(data_dir,
 
     paths = imdb[:,0]
 
+    if processing is not None:
+        # Check analysis file is given and exists.
+        assert analysis_file is not None
+        assert os.path.exists(analysis_file)
+
+        # Load results onto CPU.
+        analysis_res = torch.load(analysis_file,
+                                  map_location=lambda storage, loc: storage)
+
+        # Create mapping from path to index.
+        path_to_index = create_path_to_index(analysis_res)
+
+        # Check contents of analysis results.
+        assert 'i' in analysis_res
+        assert 'y_prevs' in analysis_res
+        assert 'y_dels' in analysis_res
+        assert 'y_origs' in analysis_res
+        assert 'y_perturbs' in analysis_res
+
     idx = []
     bb_data = []
-    for i, path in enumerate(paths):
+    for i, path in enumerate(tqdm(paths)):
         image_path = path
         image_name = path.split('/')[-1]
         synset = path.split('/')[-2]
         mask_path = os.path.join(data_dir, synset, image_name + '.pth')
-        print(i)
 
         # Verify label and image name.
         assert(synset in synsets)
@@ -70,7 +165,7 @@ def generate_bbox_file(data_dir,
 
         # Load results from torch file.
         if not os.path.exists(mask_path):
-            print('DON EXIST')
+            print(f'{mask_path} does not exist.')
             bb_data.append([synset, -2, -2, -2, -2])
             continue
 
@@ -80,11 +175,19 @@ def generate_bbox_file(data_dir,
         img = Image.open(image_path)
         (img_w, img_h) = img.size
 
-        # Load and verify 2D mask.
+        # Load mask.
         mask = res['mask']
-        # if list of masks, find mean mask
-        if len(mask.shape) == 4:
-            mask = torch.mean(mask, dim=0, keepdim=True)       
+
+        # If no pre-processing, and mask is an array of masks, use the mean mask.
+        if processing is None:
+            if len(mask.shape) == 4:
+                mask = torch.mean(mask, dim=0, keepdim=True)
+        else:
+            mask = apply_preprocessing(mask=mask,
+                                       path=mask_path,
+                                       analysis_res=analysis_res,
+                                       processing=processing,
+                                       path_to_index=path_to_index)
 
         # Apply smoothing to heatmap.
         if smooth > 0.:
@@ -157,13 +260,24 @@ if __name__ == '__main__':
         parser.add_argument('--smooth', type=float, default=0.,
                             help='sigma for smoothing to apply to heatmap '
                                  '(default: 0.).')
+        parser.add_argument('--processing',
+                            choices=['mean_crossover', 'single_crossover'],
+                            default=None,
+                            help='specify type of processing with which to '
+                                 'apply to masks.')
+        parser.add_argument('--analysis_file', type=str, default=None,
+                            help='path of file containing information about '
+                                 'the result of applying masks to input.')
         args = parser.parse_args()
 
         generate_bbox_file(data_dir=args.data_dir,
                            out_file=args.out_file,
+                           method=args.method,
                            alpha=args.alpha,
                            imdb_file=args.imdb_file,
-                           smooth=args.smooth)
+                           smooth=args.smooth,
+                           processing=args.processing,
+                           analysis_file=args.analysis_file)
     except:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
