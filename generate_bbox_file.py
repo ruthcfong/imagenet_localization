@@ -218,7 +218,11 @@ def generate_bbox_file(data_dir,
         # Load results from torch file.
         if not os.path.exists(mask_path):
             print(f'{mask_path} does not exist.')
-            bb_data.append([synset, -2, -2, -2, -2])
+            if isinstance(alpha, float):
+                bb_data.append([synset, -2, -2, -2, -2])
+            else:
+                for j in range(len(alpha)):
+                    bb_data[j].append([synset, -2, -2, -2, -2])
             continue
 
         res = torch.load(mask_path)
