@@ -258,8 +258,7 @@ def generate_bbox_file(data_dir,
     bb_data = np.array(bb_data)
     idx = np.array(idx)
 
-    # Save bounding box information in correct order.
-    sorted_idx = np.argsort(idx)
+    # Save bounding box information.
     np.savetxt(out_file, bb_data, fmt='%s %s %s %s %s')
 
 
