@@ -2,8 +2,8 @@
 
 #smooths=( "0.0" "10.0" "20.0" )
 #methods=( "mean" "min_max_diff" "energy" )
-smooths=( "10.0" "20.0" )
-methods=( "min_max_diff" )
+#smooths=( "0.0" "10.0" "20.0" )
+methods=( "mean" "threshold" )
 processings=( "mean_crossover" "single_crossover" )
 
 for smooth in "${smooths[@]}"; do
