@@ -14,7 +14,9 @@ def find_best_alpha(
     method='mean',
     alphas=np.arange(0,10,0.1),
     verbose=True,
-    out_path='/scratch/shared/slow/mandela/bbox_results'
+    out_path='/scratch/shared/slow/mandela/bbox_results',
+    smooth=0.,
+    processing=None,
 ):
     errs = np.zeros(len(alphas))
     results = []
@@ -24,8 +26,12 @@ def find_best_alpha(
     for i in range(len(alphas)):
         print(i)
         alpha = alphas[i]
-        bb_name = 'bb_val_%s_%s_%.2f.txt' % (attribution_method, method, alpha)
-        bb_file = os.path.join(out_path, bb_name)
+        bb_file = get_bb_file(out_path=out_path,
+                               attribution_method=attribution_method,
+                               method=method,
+                               alpha=alpha,
+                               smooth=smooth,
+                               processing=processing)
         (err, res, overlap, no_mask, num_blacklist) = compute_localization_results(
             bb_file=bb_file, 
             imdb_file=imdb_file,  
@@ -81,15 +87,19 @@ def get_bb_file(out_path,
         out_file: String, path to bounding box file.
     """
     if processing is None:
-        if smooth == 0.:
-            bb_file = ('bb_val_%s_%s_%.2f.txt'
-                       % (attribution_method, method, alpha))
-        else:
-            bb_file = ('bb_val_%s_%s_%.2f_sm_%.1f.txt'
-                       % (attribution_method, method, alpha, smooth))
+        processing_substr = ''
     else:
-        bb_file = ('bb_val_%s_%s_%s_%.2f_sm_%.1f.txt'
-                   % (attribution_method, processing, method, alpha, smooth))
+        processing_substr = f'_{processing}'
+    if smooth == 0.:
+        smooth_substr = ''
+    else:
+        smooth_substr = f'_{smooth:.1f}'
+    if isinstance(alpha, float):
+        alpha_substr = f'_{alpha:.2f}'
+    else:
+        alpha_substr = ''
+    bb_file = f'bb_val_{attribution_method}{processing_substr}_{method}'\
+              f'{smooth_substr}{alpha_substr}.txt'
 
     out_file = os.path.join(out_path, bb_file)
     return out_file
@@ -111,6 +121,8 @@ def get_bbox_and_localization_results(
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
+    # Check which bounding box files are present.
+    bbox_present = np.zeros(len(alphas), dtype=bool)
     for i in range(len(alphas)):
         alpha = alphas[i]
 
@@ -123,15 +135,27 @@ def get_bbox_and_localization_results(
                                processing=processing)
 
         # Generate bounding box file if it doesn't exist.
-        if not os.path.exists(out_file):
-            generate_bbox_file(data_dir=data_dir,
-                               out_file=out_file,
+        bbox_present[i] = os.path.exists(out_file)
+
+    # Generate bounding box for missing alphas.
+    if not np.all(bbox_present):
+        bb_alphas = [a for i, a in enumerate(alphas) if not bbox_present[i]]
+
+        out_file = get_bb_file(out_path=out_path,
+                               attribution_method=attribution_method,
                                method=method,
-                               alpha=alpha,
-                               imdb_file=imdb_file,
+                               alpha=bb_alphas,
                                smooth=smooth,
-                               processing=processing,
-                               analysis_file=analysis_file)
+                               processing=processing)
+
+        generate_bbox_file(data_dir=data_dir,
+                           out_file=out_file,
+                           method=method,
+                           alpha=bb_alphas,
+                           imdb_file=imdb_file,
+                           smooth=smooth,
+                           processing=processing,
+                           analysis_file=analysis_file)
 
     res = find_best_alpha(
         imdb_file=imdb_file, 
@@ -140,7 +164,9 @@ def get_bbox_and_localization_results(
         method=method,
         alphas=alphas,
         verbose=verbose,
-        out_path=out_path
+        out_path=out_path,
+        smooth=smooth,
+        processing=processing,
     )
 
     torch.save(res, os.path.join(out_path, '%s_%s_bbox_dict_new_v2.pth' % (attribution_method, method)))
@@ -156,8 +182,8 @@ if __name__ == '__main__':
         parser.register('type', 'bool', str2bool)
         parser.add_argument('--attribution_method', type=str, default='pertrubations')
         parser.add_argument('--data_dir', type=str, default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
-        parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
-        # parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/ruthfong/imagenet_localization/bbox_results')
+        # parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
+        parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/ruthfong/imagenet_localization/bbox_results')
         parser.add_argument('--method', type=str, default='mean')
         parser.add_argument('--annotation_dir', type=str, default='/datasets/imagenet14/cls_loc/val')
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
