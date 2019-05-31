@@ -184,7 +184,8 @@ if __name__ == '__main__':
         parser.add_argument('--data_dir', type=str, default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
         # parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
         parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/ruthfong/imagenet_localization/bbox_results')
-        parser.add_argument('--method', type=str, default='mean')
+        parser.add_argument('--method', type=str, default='mean',
+                            choices=['mean', 'min_max_diff', 'energy', 'threshold'])
         parser.add_argument('--annotation_dir', type=str, default='/datasets/imagenet14/cls_loc/val')
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
         parser.add_argument('--verbose', type='bool', default=True)
