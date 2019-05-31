@@ -113,10 +113,12 @@ def get_bbox_from_heatmap(heatmap, alpha, method='mean'):
         threshold = alpha*heatmap.mean()
         heatmap[heatmap < threshold] = 0
     elif method == 'min_max_diff':
+        # TODO(ruthfong): Note -- you can use "threshold" instead of "min_max_diff" if already normalized.
         threshold = alpha*(heatmap.max()-heatmap.min())
         heatmap_m = heatmap - heatmap.min()
         heatmap[heatmap_m < threshold] = 0
     elif method == 'energy':
+        # TODO(ruthfong): Speed up "energy" for multiple alphas.
         heatmap_f = heatmap.flatten()
         sorted_idx = np.argsort(heatmap_f)[::-1]
         tot_energy = heatmap.sum()
@@ -142,20 +144,24 @@ def generate_bbox_file(data_dir,
                        imdb_file='./data/val_imdb_0_1000.txt',
                        smooth=0.,
                        processing=None,
-                       analysis_file=None):
+                       analysis_file=None,
+                       first_n=None):
     """
 
     Args:
         data_dir: String, directory containing torch results files.
         out_file: String, path to save output file.
         method: String, 'mean', 'min_max_diff', 'energy'
-        alpha: Float, threshold value with which to threshold masks.
+        alpha: Float, list, or np.ndarray, threshold value(s) with which to
+            threshold masks.
         imdb_file: String, path to imdb file.
         smooth: Float, amount of smoothing to apply.
         processing: String, type of pre-processing to apply to masks
             (i.e., 'mean_crossover', 'single_crossover', or None).
         analysis_file: String, path to analysis file, which contains
             information the result of applying masks to the input.
+        first_n: Integer, only generate bounding box information for
+            first N examples.
     """
 
     synsets = np.loadtxt('data/synsets.txt', dtype=str, delimiter='\t')
@@ -186,21 +192,28 @@ def generate_bbox_file(data_dir,
         assert 'y_origs' in analysis_res
         assert 'y_perturbs' in analysis_res
 
-    idx = []
-    bb_data = []
+    # Initialize variable for saving bounding boxes.
+    if isinstance(alpha, float):
+        bb_data = []
+        print(f'Using alpha: {alpha}')
+    elif isinstance(alpha, list) or isinstance(alpha, np.ndarray):
+        bb_data = [[] for _ in range(len(alpha))]
+        print(f'Using alpha range: {alpha}')
+    else:
+        assert False
+
     for i, path in enumerate(tqdm(paths)):
         image_path = path
         image_name = path.split('/')[-1]
         synset = path.split('/')[-2]
         mask_path = os.path.join(data_dir, synset, image_name + '.pth')
 
+        if first_n is not None and i == first_n:
+            break
+
         # Verify label and image name.
         assert(synset in synsets)
         assert(image_name in image_names)
-
-        # Save index into ordered split.
-        index = np.where(image_names == image_name)[0][0]
-        idx.append(index)
 
         # Load results from torch file.
         if not os.path.exists(mask_path):
@@ -248,18 +261,33 @@ def generate_bbox_file(data_dir,
         assert(np.max(resized_mask) <= 1)
         assert(np.min(resized_mask) >= 0)
 
-        # Threshold mask and get smallest bounding box coordinates.
-        bb = get_bbox_from_heatmap(heatmap=resized_mask,
-                                   alpha=alpha,
-                                   method=method)
-        bb.insert(0, synset)
-        bb_data.append(bb)
+        # Get bounding box for either a single or list of alpha choices.
+        if isinstance(alpha, float):
+            bb = get_bbox_from_heatmap(heatmap=resized_mask,
+                                       alpha=alpha,
+                                       method=method)
+            bb.insert(0, synset)
+            bb_data.append(bb)
+        elif isinstance(alpha, list) or isinstance(alpha, np.ndarray):
+            for j, a in enumerate(alpha):
+                bb = get_bbox_from_heatmap(heatmap=resized_mask,
+                                           alpha=a,
+                                           method=method)
+                bb.insert(0, synset)
+                bb_data[j].append(bb)
+        else:
+            assert False
 
-    bb_data = np.array(bb_data)
-    idx = np.array(idx)
 
     # Save bounding box information.
-    np.savetxt(out_file, bb_data, fmt='%s %s %s %s %s')
+    if isinstance(alpha, float):
+        np.savetxt(out_file, np.array(bb_data), fmt='%s %s %s %s %s')
+    else:
+        for j, a in enumerate(alpha):
+            prefix, ext = os.path.splitext(out_file)
+            o_file = f'{prefix}_{a:.2f}{ext}'
+            np.savetxt(o_file, np.array(bb_data[j]), fmt='%s %s %s %s %s')
+
 
 
 if __name__ == '__main__':
@@ -271,7 +299,12 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('data_dir', type=str)
         parser.add_argument('out_file', type=str)
-        parser.add_argument('--method', type=str, default='mean')
+        parser.add_argument('--method',
+                            type=str,
+                            choices=['mean', 'min_max_diff', 'energy', 'threshold'],
+                            default='mean')
+        parser.add_argument('--alpha_range', action='store_true', default=False,
+                            help='If True, use range of alpha.')
         parser.add_argument('--alpha', type=float, default=0.5)
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
         parser.add_argument('--smooth', type=float, default=0.,
@@ -282,19 +315,32 @@ if __name__ == '__main__':
                             default=None,
                             help='specify type of processing with which to '
                                  'apply to masks.')
-        parser.add_argument('--analysis_file', type=str, default=None,
+        parser.add_argument('--analysis_file', type=str,
+                            default='/scratch/shared/slow/ruthfong/attribution/results/analyze/exp20-sal-im12val-vgg16.pth',
                             help='path of file containing information about '
                                  'the result of applying masks to input.')
+        parser.add_argument('--first_n', type=int, default=None,
+                            help='Only generate bounding box for first N examples.')
         args = parser.parse_args()
+
+        if args.alpha_range:
+            if args.method == "mean":
+                alpha = np.arange(0, 10, 0.5)
+            else:
+                alpha = np.arange(0, 1, 0.05)
+        else:
+            alpha = args.alpha
+
 
         generate_bbox_file(data_dir=args.data_dir,
                            out_file=args.out_file,
                            method=args.method,
-                           alpha=args.alpha,
+                           alpha=alpha,
                            imdb_file=args.imdb_file,
                            smooth=args.smooth,
                            processing=args.processing,
-                           analysis_file=args.analysis_file)
+                           analysis_file=args.analysis_file,
+                           first_n=args.first_n)
     except:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
