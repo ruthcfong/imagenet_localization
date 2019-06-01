@@ -52,6 +52,8 @@ def find_best_alpha(
         'annotation_dir': annotation_dir,
         'attribution_method': attribution_method,
         'method': method,
+        'smooth': smooth,
+        'processing': processing,
         'out_path': out_path,
         'alphas': alphas,
         'errors': errs,
