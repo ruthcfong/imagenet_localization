@@ -169,7 +169,18 @@ def get_bbox_and_localization_results(
         processing=processing,
     )
 
-    torch.save(res, os.path.join(out_path, '%s_%s_bbox_dict_new_v2.pth' % (attribution_method, method)))
+    # Get name of results file.
+    res_file = get_bb_file(out_path=out_path,
+                           attribution_method=attribution_method,
+                           method=method,
+                           alpha=None,
+                           smooth=smooth,
+                           processing=processing)
+    res_file.replace(".txt", ".pth")
+    name, ext = os.path.splitext(res_file)
+    res_file = f"{name}_new_v3{ext}"
+
+    torch.save(res, res_file)
 
 
 if __name__ == '__main__':
