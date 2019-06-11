@@ -9,6 +9,7 @@ import os
 
 from bs4 import BeautifulSoup
 import numpy as np
+from tqdm import tqdm
 
 from utils import str2bool, read_imdb, get_basename_without_ext
 
@@ -183,7 +184,7 @@ def compute_localization_results(bb_file,
     res = np.zeros(num_examples, dtype=int)
     overlap = np.zeros(num_examples)
     no_masks = np.zeros(num_examples)
-    for i in range(num_examples):
+    for i in tqdm(range(num_examples)):
         # Skip blacklisted examples.
         if blacklist[i]:
             continue
