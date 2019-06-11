@@ -205,7 +205,6 @@ if __name__ == '__main__':
         parser.add_argument('--annotation_dir', type=str, default='/datasets/imagenet14/cls_loc/val')
         parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
         parser.add_argument('--verbose', type='bool', default=True)
-        parser.add_argument('--gpu', type=int, nargs='*', default=None)
         parser.add_argument('--smooth', type=float, default=0.,
                             help='sigma for smoothing to apply to heatmap '
                                  '(default: 0.).')
