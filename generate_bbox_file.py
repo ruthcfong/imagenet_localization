@@ -222,6 +222,8 @@ def generate_bbox_file(data_dir,
     else:
         assert False
 
+    skipped = 0
+
     for i, image_path in enumerate(tqdm(image_paths)):
         image_name = os.path.basename(image_path)
         # TODO(ruthfong): Make getting synset more robust.
@@ -237,7 +239,7 @@ def generate_bbox_file(data_dir,
         # Check if results file exists for image.
         image_name_no_ext = os.path.splitext(image_name)[0]
         if image_name_no_ext not in res_paths_lookup:
-            print(f'Results file for {image_name} does not exist.')
+            skipped += 1
             if isinstance(alpha, float):
                 bb_data.append([synset, -2, -2, -2, -2])
             else:
@@ -304,7 +306,7 @@ def generate_bbox_file(data_dir,
         else:
             assert False
 
-
+    print(f'# skipped: {skipped}')
     # Save bounding box information.
     if isinstance(alpha, float):
         np.savetxt(out_file, np.array(bb_data), fmt='%s %s %s %s %s')

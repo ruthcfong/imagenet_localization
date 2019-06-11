@@ -193,7 +193,6 @@ def compute_localization_results(bb_file,
             res[i] = True
             continue
         if np.all(bbs[i] == -2):
-            print('Mask not computed')
             res[i] = False
             no_masks[i] = True
             continue
@@ -215,6 +214,7 @@ def compute_localization_results(bb_file,
     err = res.sum()/float(num_examples - blacklist.sum() - no_masks.sum())
     if verbose:
         print('Localization Error:', err)
+        print('# with no masks: ', no_masks.sum())
 
     return (err, res, overlap, no_masks, blacklist.sum())
 
