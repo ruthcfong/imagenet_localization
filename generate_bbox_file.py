@@ -33,6 +33,20 @@ def create_path_to_index(analysis_res):
     return path_to_index
 
 
+# TODO(ruthfong): Refactor with attribution/analyze_utils.py function.
+def get_res_paths_dict(data_dir):
+    res_paths = [os.path.join(dp, f) for dp, dn, filenames in os.walk(data_dir)
+                 for f in filenames if '.pth' in f]
+    res_paths_d = {}
+    for res_path in res_paths:
+        img_name = os.path.basename(res_path)
+        if '-class' in img_name:
+            img_name, _ = img_name.split('-class')
+        assert img_name not in res_paths_d
+        res_paths_d[img_name] = res_path
+    return res_paths_d
+
+
 def apply_preprocessing(mask,
                         path,
                         analysis_res,
@@ -173,6 +187,9 @@ def generate_bbox_file(data_dir,
 
     paths = imdb[:,0]
 
+    # Get dictionary mapping image names (without extension) to res paths.
+    res_paths_lookup = get_res_paths_dict(data_dir)
+
     if processing is not None:
         # Check analysis file is given and exists.
         assert analysis_file is not None
@@ -204,9 +221,9 @@ def generate_bbox_file(data_dir,
 
     for i, path in enumerate(tqdm(paths)):
         image_path = path
-        image_name = path.split('/')[-1]
+        image_name = os.path.basename(image_path)
+        # TODO(ruthfong): Make getting synset more robust.
         synset = path.split('/')[-2]
-        mask_path = os.path.join(data_dir, synset, image_name + '.pth')
 
         if first_n is not None and i == first_n:
             break
@@ -215,9 +232,10 @@ def generate_bbox_file(data_dir,
         assert(synset in synsets)
         assert(image_name in image_names)
 
-        # Load results from torch file.
-        if not os.path.exists(mask_path):
-            print(f'{mask_path} does not exist.')
+        # Check if results file exists for image.
+        image_name_no_ext = os.path.splitext(image_name)
+        if image_name_no_ext not in res_paths_lookup:
+            print(f'Results file for {image_name} does not exist.')
             if isinstance(alpha, float):
                 bb_data.append([synset, -2, -2, -2, -2])
             else:
@@ -225,6 +243,8 @@ def generate_bbox_file(data_dir,
                     bb_data[j].append([synset, -2, -2, -2, -2])
             continue
 
+        # Load results from torch file.
+        mask_path = res_paths_lookup[image_name_no_ext]
         res = torch.load(mask_path)
 
         # Get original image dimensions.
