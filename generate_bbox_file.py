@@ -233,7 +233,7 @@ def generate_bbox_file(data_dir,
         assert(image_name in image_names)
 
         # Check if results file exists for image.
-        image_name_no_ext = os.path.splitext(image_name)
+        image_name_no_ext = os.path.splitext(image_name)[0]
         if image_name_no_ext not in res_paths_lookup:
             print(f'Results file for {image_name} does not exist.')
             if isinstance(alpha, float):
