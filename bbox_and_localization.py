@@ -110,6 +110,7 @@ def get_bb_file(out_path,
 def get_bbox_and_localization_results(
     attribution_method='perturbations',
     data_dir='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16',
+    image_dir='/scratch/shared/slow/ruthfong/ILSVRC2012/images/val_pytorch',
     out_path='/scratch/shared/slow/mandela/bbox_results',
     method='mean',
     alphas=np.arange(0,10,0.1),
@@ -152,6 +153,7 @@ def get_bbox_and_localization_results(
 
         generate_bbox_file(data_dir=data_dir,
                            out_file=out_file,
+                           image_dir=image_dir,
                            method=method,
                            alpha=bb_alphas,
                            imdb_file=imdb_file,
@@ -195,6 +197,7 @@ if __name__ == '__main__':
         parser.register('type', 'bool', str2bool)
         parser.add_argument('--attribution_method', type=str, default='pertrubations')
         parser.add_argument('--data_dir', type=str, default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
+        parser.add_argument('--image_dir', type=str, default='/scratch/shared/slow/ruthfong/ILSVRC2012/images/val_pytorch')
         # parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
         parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/ruthfong/imagenet_localization/bbox_results')
         parser.add_argument('--method', type=str, default='mean',
@@ -226,6 +229,7 @@ if __name__ == '__main__':
         get_bbox_and_localization_results(
             attribution_method=args.attribution_method,
             data_dir=args.data_dir,
+            image_dir=args.image_dir,
             out_path=args.out_path,
             method=args.method,
             alphas=the_range,
