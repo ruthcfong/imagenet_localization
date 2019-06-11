@@ -153,9 +153,10 @@ def get_bbox_from_heatmap(heatmap, alpha, method='mean'):
 
 def generate_bbox_file(data_dir,
                        out_file,
+                       image_dir,
                        method='mean',
                        alpha=0.5,
-                       imdb_file='./data/val_imdb_0_1000.txt',
+                       imdb_file='./data/val_imdb_pytorch.txt',
                        smooth=0.,
                        processing=None,
                        analysis_file=None,
@@ -165,6 +166,7 @@ def generate_bbox_file(data_dir,
     Args:
         data_dir: String, directory containing torch results files.
         out_file: String, path to save output file.
+        image_dir; String, directory containing image files.
         method: String, 'mean', 'min_max_diff', 'energy'
         alpha: Float, list, or np.ndarray, threshold value(s) with which to
             threshold masks.
@@ -185,7 +187,8 @@ def generate_bbox_file(data_dir,
     imdb_val_ordered = np.loadtxt('./data/val.txt', dtype=str)
     image_names = imdb_val_ordered[:,0]
 
-    paths = imdb[:,0]
+    # Get image paths.
+    image_paths = [os.path.join(image_dir, f) for f in imdb[:,0]]
 
     # Get dictionary mapping image names (without extension) to res paths.
     res_paths_lookup = get_res_paths_dict(data_dir)
@@ -219,11 +222,10 @@ def generate_bbox_file(data_dir,
     else:
         assert False
 
-    for i, path in enumerate(tqdm(paths)):
-        image_path = path
+    for i, image_path in enumerate(tqdm(image_paths)):
         image_name = os.path.basename(image_path)
         # TODO(ruthfong): Make getting synset more robust.
-        synset = path.split('/')[-2]
+        synset = image_path.split('/')[-2]
 
         if first_n is not None and i == first_n:
             break
@@ -323,6 +325,9 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('data_dir', type=str)
         parser.add_argument('out_file', type=str)
+        parser.add_argument('--image_dir', type=str,
+                            default='/scratch/shared/slow/ruthfong/ILSVRC2012/images/val_pytorch',
+                            help='directory containing image files (PyTorch style).')
         parser.add_argument('--method',
                             type=str,
                             choices=['mean', 'min_max_diff', 'energy', 'threshold'],
@@ -330,7 +335,7 @@ if __name__ == '__main__':
         parser.add_argument('--alpha_range', action='store_true', default=False,
                             help='If True, use range of alpha.')
         parser.add_argument('--alpha', type=float, default=0.5)
-        parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_0_1000.txt')
+        parser.add_argument('--imdb_file', type=str, default='./data/val_imdb_pytorch.txt')
         parser.add_argument('--smooth', type=float, default=0.,
                             help='sigma for smoothing to apply to heatmap '
                                  '(default: 0.).')
@@ -358,6 +363,7 @@ if __name__ == '__main__':
 
         generate_bbox_file(data_dir=args.data_dir,
                            out_file=args.out_file,
+                           image_dir=args.image_dir,
                            method=args.method,
                            alpha=alpha,
                            imdb_file=args.imdb_file,
