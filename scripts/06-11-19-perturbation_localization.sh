@@ -7,7 +7,7 @@ image_dir="/checkpoint/ruthfong/attribution/results/${exp_name}.pth"
 annotation_dir="/private/home/ruthfong/data/imagenet14/cls_loc/val"
 out_path="/checkpoint/ruthfong/attribution/bbox_results"
 
-methods=( "mean" "threshold" )
+methods=( "mean" "threshold" "energy" )
 processings=( "mean_crossover" "single_crossover" )
 smooths=( 0 10 20 )
 
