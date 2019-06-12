@@ -3,7 +3,7 @@
 exp_name="exp11-imnet-vgg16-variant2-init"
 data_dir="/checkpoint/vedaldi/saliency/${exp_name}"
 analysis_file="/checkpoint/ruthfong/attribution/results/${exp_name}.pth"
-image_dir="/checkpoint/ruthfong/attribution/results/${exp_name}.pth"
+image_dir="/private/home/ruthfong/data/imagenet12/061417/val"
 annotation_dir="/private/home/ruthfong/data/imagenet14/cls_loc/val"
 out_path="/checkpoint/ruthfong/attribution/bbox_results"
 
