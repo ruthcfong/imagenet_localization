@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-exp_name="exp10-imnet-vgg16-variant2"
+#exp_name="exp10-imnet-vgg16-variant2"
+exp_name="exp11-imnet-vgg16-variant2-init"
 data_dir="/checkpoint/vedaldi/saliency/${exp_name}"
 analysis_file="/checkpoint/ruthfong/attribution/results/${exp_name}.pth"
 image_dir="/checkpoint/ruthfong/attribution/results/${exp_name}.pth"
@@ -21,7 +22,8 @@ for method in "${methods[@]}"; do
                 --annotation_dir $annotation_dir \
                 --smooth $smooth \
                 --processing $processing \
-                --analysis_file $analysis_file
+                --analysis_file $analysis_file \
+                --exp_name $exp_name
         done
     done
 done
