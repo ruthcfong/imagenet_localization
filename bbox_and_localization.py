@@ -73,7 +73,8 @@ def get_bb_file(out_path,
                 method,
                 alpha,
                 smooth=0.,
-                processing=None):
+                processing=None,
+                exp_name=None):
     """
     Return path of bounding box file.
 
@@ -84,10 +85,15 @@ def get_bb_file(out_path,
         alpha: Float.
         smooth: Float.
         processing: String.
+        exp_name: String.
 
     Return:
         out_file: String, path to bounding box file.
     """
+    if exp_name is None:
+        exp_substr = ''
+    else:
+        exp_substr = f'_{exp_name}'
     if processing is None:
         processing_substr = ''
     else:
@@ -100,7 +106,7 @@ def get_bb_file(out_path,
         alpha_substr = f'_{alpha:.2f}'
     else:
         alpha_substr = ''
-    bb_file = f'bb_val_{attribution_method}{processing_substr}_{method}'\
+    bb_file = f'bb_val_{attribution_method}{exp_name}{processing_substr}_{method}'\
               f'{smooth_substr}{alpha_substr}.txt'
 
     out_file = os.path.join(out_path, bb_file)
@@ -120,6 +126,7 @@ def get_bbox_and_localization_results(
     smooth=0.,
     processing=None,
     analysis_file=None,
+    exp_name=None,
 ):  
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -135,7 +142,8 @@ def get_bbox_and_localization_results(
                                method=method,
                                alpha=alpha,
                                smooth=smooth,
-                               processing=processing)
+                               processing=processing,
+                               exp_name=exp_name)
 
         # Generate bounding box file if it doesn't exist.
         bbox_present[i] = os.path.exists(out_file)
@@ -149,7 +157,8 @@ def get_bbox_and_localization_results(
                                method=method,
                                alpha=bb_alphas,
                                smooth=smooth,
-                               processing=processing)
+                               processing=processing,
+                               exp_name=exp_name)
 
         generate_bbox_file(data_dir=data_dir,
                            out_file=out_file,
@@ -179,7 +188,8 @@ def get_bbox_and_localization_results(
                            method=method,
                            alpha=None,
                            smooth=smooth,
-                           processing=processing)
+                           processing=processing,
+                           exp_name=exp_name)
     res_file.replace(".txt", ".pth")
     name, ext = os.path.splitext(res_file)
     res_file = f"{name}_new_v3{ext}"
@@ -196,6 +206,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.register('type', 'bool', str2bool)
         parser.add_argument('--attribution_method', type=str, default='pertrubations')
+        parser.add_argument('--exp_name', type=str, default=None)
         parser.add_argument('--data_dir', type=str, default='/scratch/shared/slow/vedaldi/vis/exp20-sal-im12val-vgg16')
         parser.add_argument('--image_dir', type=str, default='/scratch/shared/slow/ruthfong/ILSVRC2012/images/val_pytorch')
         # parser.add_argument('--out_path', type=str, default='/scratch/shared/slow/mandela/bbox_results_smooth_20')
@@ -238,6 +249,7 @@ if __name__ == '__main__':
             smooth=args.smooth,
             processing=args.processing,
             analysis_file=args.analysis_file,
+            exp_name=args.exp_name,
         )
     except:
         traceback.print_exc(file=sys.stdout)
