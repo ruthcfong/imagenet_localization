@@ -17,6 +17,7 @@ def find_best_alpha(
     out_path='/scratch/shared/slow/mandela/bbox_results',
     smooth=0.,
     processing=None,
+    exp_name=None,
 ):
     errs = np.zeros(len(alphas))
     results = []
@@ -31,7 +32,8 @@ def find_best_alpha(
                                method=method,
                                alpha=alpha,
                                smooth=smooth,
-                               processing=processing)
+                               processing=processing,
+                               exp_name=exp_name)
         (err, res, overlap, no_mask, num_blacklist) = compute_localization_results(
             bb_file=bb_file, 
             imdb_file=imdb_file,  
@@ -180,6 +182,7 @@ def get_bbox_and_localization_results(
         out_path=out_path,
         smooth=smooth,
         processing=processing,
+        exp_name=exp_name,
     )
 
     # Get name of results file.
